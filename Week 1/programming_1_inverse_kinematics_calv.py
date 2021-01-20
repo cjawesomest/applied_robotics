@@ -49,8 +49,6 @@ def ellipse_gen(a=1, b=1, r=1, center_x=0, center_y=0, x_step=0.1, x_init=0, x_f
         # this_x = this_x + x_step
     return xs, ys
 
-#Takes an array of radian values and converts
-
 #Determines the link angles of a two-link manipulator for an array of end-effector positions
 def two_link_inverse_kinematics(x_vals, y_vals, length_1, length_2, elbow_up=True):
     theta_1s = []
@@ -94,100 +92,81 @@ def two_link_inverse_kinematics(x_vals, y_vals, length_1, length_2, elbow_up=Tru
         theta_2s.append(this_theta_2)
     return theta_1s, theta_2s
 
+#Generates 2 figures: 
+#   Figure 1: Showing RR manipulator in physical space with 2 links extending to test pionts
+#   Figure 2: Creating plots showcasing theta_1/2 vs x/y for elbow up and down positions
+def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=1):
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
+    fig = plt.figure(figure_num)
+    subplots = [242, 245, 246, 243, 247, 248]
+    titles = ['Elbow Up : Space', r'Elbow Up : X, Y and $\theta_1$', r'Elbow Up : X, Y and $\theta_2$',
+        'Elbow Down : Space', r'Elbow Down : X, Y and $\theta_1$', r'Elbow Down : X, Y and $\theta_2$']
+    xlabels = ['x', 'x,y', 'x,y', 'x', 'x,y', 'x,y']
+    ylabels = ['y', r'$\theta_1$ (deg)', r'$\theta_2$ (deg)', 'y', r'$\theta_1$ (deg)', r'$\theta_2$ (deg)']
+    iter = 0
+    for elbow in [True, False]:
+        axis = fig.add_subplot(subplots[iter])
+        axis.set_aspect('equal', adjustable='box')
+        plt.scatter(tp_xs, tp_ys, s=8, c='indigo')
+        plt.xlabel(xlabels[iter])
+        plt.ylabel(ylabels[iter])
+        plt.xlim([-0.5, 10])
+        plt.ylim([-10, 10])
+        plt.title(titles[iter])
+        theta_1s, theta_2s = two_link_inverse_kinematics(tp_xs, tp_ys, length_1, length_2, elbow_up=elbow)
+        for i in range(len(theta_1s)):
+                link_1_angle = theta_1s[i]
+                link_2_angle = theta_1s[i]+theta_2s[i]
+                link_1_start = origin
+                link_1_end=[link_1_start[0]+math.cos(link_1_angle)*length_1, 
+                    link_1_start[1]+math.sin(link_1_angle)*length_1]
+                link_2_start = link_1_end
+                link_2_end=[link_2_start[0]+math.cos(link_2_angle)*length_2, 
+                    link_2_start[1]+math.sin(link_2_angle)*length_2]
+                plt.plot([link_1_start[0], link_1_end[0]], [link_1_start[1], link_1_end[1]], 'g--')
+                plt.plot([link_2_start[0], link_2_end[0]], [link_2_start[1], link_2_end[1]], 'b--')
+        iter = iter + 1
+        theta_1s_deg = [math.degrees(theta) for theta in theta_1s]
+        theta_2s_deg = [math.degrees(theta) for theta in theta_2s]
+        for angles in [theta_1s_deg, theta_2s_deg]:
+            axis = fig.add_subplot(subplots[iter])
+            plt.scatter(tp_xs, angles, s=8, c=['red'])
+            plt.scatter(tp_ys, angles, s=8, c=['blue'])
+            plt.xlabel(xlabels[iter])
+            plt.ylabel(ylabels[iter])
+            plt.xlim([-10, 10])
+            plt.ylim([-180, 180])
+            plt.title(titles[iter])
+            iter = iter + 1
+    legend_elements = [Line2D([0], [0], linestyle='--', color='g', label=r'Link 1', lw=2),
+                        Line2D([0], [0], linestyle='--', color='b', label=r'Link 2', lw=2),
+                        Line2D([0], [0], marker='o', color='w', label=r'TP',
+                            markerfacecolor='indigo', markersize=8),
+                        Line2D([0], [0], marker='o', color='w', label=r'X Values',
+                            markerfacecolor='red', markersize=8),
+                        Line2D([0], [0], marker='o', color='w', label=r'Y Values',
+                            markerfacecolor='blue', markersize=8),]
+    fig.legend(handles=legend_elements, loc='upper right')
+    fig.tight_layout()
+    
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
     #Elliptical Movement
     x_values_ellipse, y_values_ellipse = ellipse_gen(r=10, x_step=0.5, x_final=10)
+    #Linear Movement
     x_values_linear, y_values_linear = linear_gen(-2, 10, 1, 0, 10)
 
     # x_values_linear = [0]
     # y_values_linear = [10]
 
-    link_lengths = 5
     manipulator_base_origin = [0, 0]
-
-    #Set up plot details
-    fig = plt.figure() 
-    fig_2 = plt.figure()
-    subplot=220
-    count = 0
-    for elbow in [True, False, True, False]:
-        subplot = subplot+1
-        plt.figure(1)
-        axis = fig.add_subplot(subplot)
-
-        if count < 2:
-            plt.scatter(x_values_ellipse, y_values_ellipse)
-            theta_1s, theta_2s = two_link_inverse_kinematics(x_values_ellipse, y_values_ellipse, link_lengths, link_lengths, elbow_up=elbow)
-            if elbow:
-                plt.title("Elbow Up Elliptical")
-            else:
-                plt.title("Elbow Down Elliptical")
-        else:
-            plt.scatter(x_values_linear, y_values_linear)
-            theta_1s, theta_2s = two_link_inverse_kinematics(x_values_linear, y_values_linear, link_lengths, link_lengths, elbow_up=elbow)
-            if elbow:
-                plt.title("Elbow Up Linear")
-            else:
-                plt.title("Elbow Down Linear")
-        
-        axis.set_aspect('equal', adjustable='box') #For a more circular looking circle
-        # axis.set_aspect(1./axis.get_data_ratio()) #For a wider looking circle
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.xlim([-1, 2*link_lengths])
-        plt.ylim([-2*link_lengths, 2*link_lengths])
-        legend_elements = [Line2D([0], [0], linestyle='--', color='g', label=r'Link 1', lw=2),
-                           Line2D([0], [0], linestyle='--', color='b', label=r'Link 2', lw=2),
-                            Line2D([0], [0], marker='o', color='w', label=r'TP',
-                            markerfacecolor='cornflowerblue', markersize=10),]
-        fig.legend(handles=legend_elements, loc='right')
-
-        #Plot links extending to each point on plot
-        for i in range(len(theta_1s)):
-            link_1_angle = theta_1s[i]
-            link_2_angle = theta_1s[i]+theta_2s[i]
-            link_1_start = manipulator_base_origin
-            link_1_end=[link_1_start[0]+math.cos(link_1_angle)*link_lengths, 
-                link_1_start[1]+math.sin(link_1_angle)*link_lengths]
-            link_2_start = link_1_end
-            link_2_end=[link_2_start[0]+math.cos(link_2_angle)*link_lengths, 
-                link_2_start[1]+math.sin(link_2_angle)*link_lengths]
-            plt.plot([link_1_start[0], link_1_end[0]], [link_1_start[1], link_1_end[1]], 'g--')
-            plt.plot([link_2_start[0], link_2_end[0]], [link_2_start[1], link_2_end[1]], 'b--')
-
-        theta_1s_deg = [math.degrees(theta) for theta in theta_1s]
-        theta_2s_deg = [math.degrees(theta) for theta in theta_2s]
-
-        plt.figure(2)
-        ax = fig_2.add_subplot(subplot)
-        if count < 2:
-            plt.scatter(x_values_ellipse, theta_1s_deg)
-            plt.scatter(y_values_ellipse, theta_2s_deg)
-            if elbow:
-                plt.title("Elbow Up Elliptical")
-            else:
-                plt.title("Elbow Down Elliptical")
-        else:
-            plt.scatter(x_values_linear, theta_1s_deg)
-            plt.scatter(y_values_linear, theta_2s_deg)
-            if elbow:
-                plt.title("Elbow Up Linear")
-            else:
-                plt.title("Elbow Down Linear")
-        plt.xlabel("x, y")
-        plt.ylabel(r'$\theta_1, \theta_2$ (deg)')
-        handles, labels = ax.get_legend_handles_labels()
-        legend_elements = [Line2D([0], [0], marker='o', color='w', label=r'$y, \theta_2$',
-                            markerfacecolor='orange', markersize=8),
-                           Line2D([0], [0], marker='o', color='w', label=r'$x, \theta_1$',
-                            markerfacecolor='blue', markersize=8),]
-        fig_2.legend(handles=legend_elements, loc='right')
-        count = count + 1
+    link_lengths = 5
+    plot_kinematic_figures(x_values_ellipse, y_values_ellipse, 
+        link_lengths, link_lengths, manipulator_base_origin, figure_num = 1)
+    plot_kinematic_figures(x_values_linear, y_values_linear, 
+        link_lengths, link_lengths, manipulator_base_origin, figure_num = 2)
     plt.show()
-    
-    print(theta_1s_deg)
-    print(theta_2s_deg)
