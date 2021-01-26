@@ -1,9 +1,11 @@
 # Cameron J. Calv 
 # ECES T580 Applied Robotics
-# Programming Assignment 1
-#   Inverse Kinematics on arbitrary quadrant I & IV lines
+# Programming Assignment 2
+#   Velocity profiles along a straight line (and position and acceleration too)
 import math
 import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 # Generates X and Y values for an arbitray line according to Ax+B=y
 def linear_gen(a, b, x_step=0.1, x_init=0, x_final=1):
@@ -119,13 +121,45 @@ def two_link_inverse_kinematics(x_vals, y_vals, length_1, length_2, elbow_up=Tru
             theta_2s.append(False)
     return theta_1s, theta_2s
 
-#Generates 2 figures: 
-#   Figure 1: Showing RR manipulator in physical space with 2 links extending to test pionts
-#   Figure 2: Creating plots showcasing theta_1/2 vs x/y for elbow up and down positions
-def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=1):
-    import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
+#Takes position vectors and a time vector to extrapolate a velocity vector
+# Note: assumes zero end velocity
+# Note: not physically accurate
+def position_to_velocity(time, positions_x, positions_y):
+    if not (len(positions_x) == len(positions_y) == len(time)):
+        print("Please provide equal sized vectors!")
+        return [False], [False]
+    v_end = 0
+    v1s = []
+    v2s = []
+    for idx in range(len(time)-1):
+        v1s.append((positions_x[idx+1]-positions_x[idx])/(time[idx+1]-time[idx]))
+        v2s.append((positions_y[idx+1]-positions_y[idx])/(time[idx+1]-time[idx]))
+    v1s.append(v_end)
+    v2s.append(v_end)
+    return [v1s, v2s]
 
+#Takes position vectors and a time vector to extrapolate a velocity vector (Note, not physically accurate)
+# Note: assumes zero end acceleration
+# Note: not physically accurate
+def position_to_acceleration(time, positions_x, positions_y):
+    if not (len(positions_x) == len(positions_y) == len(time)):
+        print("Please provide equal sized vectors!")
+        return [False], [False]
+    [velocities_1, velocities_2] = position_to_velocity(time, positions_x, positions_y)
+    accel_end = 0
+    a1s = []
+    a2s = []
+    for idx in range(len(time)-1):
+        a1s.append((velocities_1[idx+1]-velocities_1[idx])/(time[idx+1]-time[idx]))
+        a2s.append((velocities_2[idx+1]-velocities_2[idx])/(time[idx+1]-time[idx]))
+    a1s.append(accel_end)
+    a2s.append(accel_end)
+    return [a1s, a2s]
+
+#Generates 2 plots: 
+#   Top Plots (Plots 1): Showing RR manipulator in physical space with 2 links extending to test pionts
+#   Bottom Plots (Plots 2) Creating plots showcasing theta_1/2 vs x/y for elbow up and down positions
+def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=1):
     #Set up plot values
     fig = plt.figure(figure_num)
     subplots = [242, 245, 246, 243, 247, 248]
@@ -207,22 +241,159 @@ def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=
     fig.legend(handles=legend_elements, loc='upper right')
     fig.tight_layout()
     
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
+#Generates a plot on two levels:
+#   Top Plots: x vs time, dx/dt vs time, dx^2/d^2 vs time
+#   Bottom Plots: y vs time, dy/dt vs time, dy^2/d^2 vs time
+# Specify angles_yes to label plots by (False) Cartesian (x,y) or (True) Angular (theta_1, theta_2)
+def plot_profile_characteristics(time, positions, velocities, accelerations, angles_yes = False, figure_num=1):
+    figure = plt.figure(figure_num)
+    subplot_num = 1
+    for y_axis_vals in [positions[0], velocities[0], accelerations[0],\
+        positions[1], velocities[1], accelerations[1]]:
+        
+        figure.add_subplot(230+subplot_num)
+        if subplot_num <=3:
+            dim = r'$\theta_1$' if angles_yes else r'$x$'
+        else:
+            dim = r'$\theta_2$' if angles_yes else r'$y$'
+        plt.ylabel(dim+' (deg)') if angles_yes else plt.ylabel(dim)
+        plt.xlabel('time (sec)')
+        if subplot_num % 3 == 2:
+            plt.title(r'$d$'+dim+r'$/dt$'+' vs. ' r'$Time$')
+        elif subplot_num % 3 == 0:
+            plt.title(r'$d$'+dim+r'$^2/d^2t$'+' vs. '+r'$Time$')
+        else:
+            plt.title(dim+' vs. ' r'$Time$')
+        plt.scatter(time, y_axis_vals, s=8, c='darkorange') if angles_yes \
+            else plt.scatter(time, y_axis_vals, s=8, c='limegreen')
 
-    #Elliptical Movement
-    x_values_ellipse, y_values_ellipse = ellipse_gen(r=8, x_step=0.5, x_final=10)
+        subplot_num = subplot_num + 1; 
+    figure.tight_layout()
+
+#Generates a trapezoidal velocity profile
+#  Acceleration time : ta
+#  Constant velocity region time : tcv
+#  Decceleration time : td; unused; is set equal to ta
+#  Displacement: displacement;  in units specified
+#  Sample Time: sample_time; how long it takes to complete path
+#Returns:
+#   Time Points array, positions array, velocity array, acceleration array
+def trap_profile_gen(ta, tcv, td, displacement, sample_time): 
+    #Adapted from Matlab (Credit: T. Chmielewski)
+    #Time to nearest increment
+    time_accel = round(ta/sample_time)*sample_time
+    # time_deccel = round(td/sample_time)*sample_time
+    time_deccel = time_accel #Force equal accel/deccel times
+    time_const_vel = round(tcv/sample_time)*sample_time
+
+    total_time = time_accel+time_const_vel+time_deccel
+    vel_max = displacement/(time_accel+time_const_vel)
+    accel_max = vel_max/time_accel
+    deccel_max = accel_max
+    computed_displacement = (0.5*(time_accel+time_deccel)+time_const_vel)*vel_max
+
+    num_updates = int(total_time/sample_time)
+
+    times = []
+    accels = []
+    velocities = []
+    positions = []
+
+    a_prev = 0
+    v_prev = 0
+    x_prev = 0
+
+    xtra_count_num = 0
+    #Determine the time vector
+    for time in range(num_updates+xtra_count_num):
+        t_now = time*sample_time
+        times.append(time)
+        #Acceleration
+        if (t_now < time_accel) and (t_now >= 0):
+            a_now = accel_max
+        elif (t_now >= (time_accel+time_const_vel)) and (t_now >= 0):
+            a_now = -1*deccel_max
+        else:
+            a_now = 0
+
+        #Velocity
+        v_now = v_prev + sample_time*a_now
+        x_now = x_prev + (sample_time/2)*(v_now+v_prev) #Trapezoidal
+        accels.append(a_now)
+        velocities.append(v_now)
+        positions.append(x_now)
+        v_prev = v_now
+        x_prev = x_now
+    
+    position_error = computed_displacement - x_now
+    if (abs(position_error) > 0):
+        print("Position Error: "+str(position_error))
+    return [times, positions, velocities, accels]
+
+#Generates a trapezoidal velocity profile like trap_profile_gen with 1/3-1/3-1/3 times
+def trap_profile_gen_ez(total_time, displacement, sample_time):
+    return trap_profile_gen(total_time/3.0, total_time/3.0, total_time/3.0,\
+        displacement, sample_time)
+
+#Generates position, velocity, and acceleration arrays with respect to each degree of freedom (2; x, y)
+#Returns same as trap_profile_gen, but position, velocity, and acceleration has internal arrays for x and y
+def trap_profile_gen_test_points(start_point, end_point, total_time, sample_time):
+    displacement = math.sqrt((end[0]-start[0])**2 + (end[1]-start[1])**2)
+    time_array, x_array, v_array, a_array = trap_profile_gen_ez(total_time, displacement, sample_time)
+
+    position_profile = [[], []]
+    velocity_profile = [[], []]
+    acceleration_profile = [[], []]
+    angle_from_start = math.atan((end_point[1]-start_point[1])/(end_point[0]-start_point[0]))
+    for position in x_array:
+        position_profile[0].append(start_point[0]+position*math.cos(angle_from_start))
+        position_profile[1].append(start_point[1]+position*math.sin(angle_from_start))
+    for velocity in v_array:
+        velocity_profile[0].append(velocity*math.cos(angle_from_start))
+        velocity_profile[1].append(velocity*math.sin(angle_from_start))
+    for acceleration in a_array:
+        acceleration_profile[0].append(acceleration*math.cos(angle_from_start))
+        acceleration_profile[1].append(acceleration*math.sin(angle_from_start))
+
+    return [time_array, position_profile, velocity_profile, acceleration_profile]
+
+if __name__ == "__main__":
     #Linear Movement
-    x_values_linear, y_values_linear = linear_gen(-2, 10, 1, 0, 10)
+    x_values_linear, y_values_linear = linear_gen(-2, 10, 6, 1, 7)
+    start = [x_values_linear[0], y_values_linear[0]]
+    end = [x_values_linear[-1], y_values_linear[-1]]
 
     manipulator_base_origin = [0, 0]
     link_lengths = 5
 
+    # Find points on line according to velocity profile
+    time = 1.8 #Seconds
+    sample_time = 0.05 #50 milliseconds
 
-    plot_kinematic_figures(x_values_ellipse, y_values_ellipse, 
+    # Determine profiles
+    time_array, pos_xy, vel_xy, acc_xy = trap_profile_gen_test_points(start, end, time, sample_time)
+
+    # Inverse kinematics for each test position
+    theta_1s, theta_2s = two_link_inverse_kinematics(pos_xy[0],\
+        pos_xy[1], link_lengths, link_lengths, elbow_up=True)
+
+    # Plot manipulator and thetas vs positions
+    plot_kinematic_figures(pos_xy[0], pos_xy[1], 
         link_lengths, link_lengths, manipulator_base_origin, figure_num = 1)
-    plot_kinematic_figures(x_values_linear, y_values_linear, 
-        link_lengths, link_lengths, manipulator_base_origin, figure_num = 2)
-        
+
+    # Plot x,y positions, velocities, and accelerations vs time
+    plot_profile_characteristics(time_array, pos_xy, vel_xy, acc_xy, angles_yes = False, figure_num = 2)
+
+    theta_1s_deg = [math.degrees(theta) for theta in theta_1s]
+    theta_2s_deg = [math.degrees(theta) for theta in theta_2s]
+
+    v_theta = position_to_velocity(time_array, theta_1s_deg, theta_2s_deg)
+    a_theta = position_to_acceleration(time_array, theta_1s_deg, theta_2s_deg)
+    # Plot theta1, theta2 positions, velocities, and accelerations vs time
+    plot_profile_characteristics(time_array, [theta_1s_deg, theta_2s_deg], v_theta, a_theta, angles_yes = True, figure_num = 3)
+    
     plt.show()
+        
+
+
+    
