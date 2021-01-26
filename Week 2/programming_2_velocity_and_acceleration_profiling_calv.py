@@ -302,6 +302,7 @@ def trap_profile_gen(ta, tcv, td, displacement, sample_time):
     a_prev = 0
     v_prev = 0
     x_prev = 0
+    x_now = 0
 
     xtra_count_num = 0
     #Determine the time vector
