@@ -225,7 +225,7 @@ def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=
             plt.xlabel(xlabels[iter])
             plt.ylabel(ylabels[iter])
             plt.xlim([-10, 10])
-            plt.ylim([-180, 180])
+            plt.ylim([-360, 360])
             plt.title(titles[iter])
             iter = iter + 1
     legend_elements = [Line2D([0], [0], linestyle='--', color='g', label=r'Link 1', lw=2),
@@ -359,11 +359,9 @@ def trap_profile_gen_test_points(start_point, end_point, total_time, sample_time
     return [time_array, position_profile, velocity_profile, acceleration_profile]
 
 if __name__ == "__main__":
-    #Linear Movement
-    x_values_linear, y_values_linear = linear_gen(-2, 10, 6, 1, 7)
-    start = [x_values_linear[0], y_values_linear[0]]
-    end = [x_values_linear[-1], y_values_linear[-1]]
-
+    #Configure system characteristics
+    start = [2, 8]
+    end = [9, 2]
     manipulator_base_origin = [0, 0]
     link_lengths = 5
 
