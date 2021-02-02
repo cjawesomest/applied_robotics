@@ -144,27 +144,33 @@ def two_link_inverse_kinematics(x_vals, y_vals, length_1, length_2, elbow_up=Tru
             theta_2s.append(False)
     return theta_1s, theta_2s
 
-def two_link_jacobian_kinematics(time, pos_prof, vel_prof, length_1, length_2, elbow_up=True):
+#Determines the link angles of a two-link manipulator for a given velocity and position profile using Jacobian matrices
+def two_link_jacobian_kinematics(time, pos_prof, vel_prof, length_1, length_2, sample_time=0.05, elbow_up=True):
     theta_1s = []
     theta_2s = []
     #Emulate encoder's reading initial value of joint angles
-    theta_1_old, theta_2_old = two_link_inverse_kinematics([pos_prof[0][0]], [pos_prof[0][1]],\
+    theta_1_old, theta_2_old = two_link_inverse_kinematics([pos_prof[0][0]], [pos_prof[1][0]],\
         length_1, length_2, elbow_up)
     theta_1_old = theta_1_old[0]
     theta_2_old = theta_2_old[0]
     theta_1s.append(theta_1_old)
     theta_2s.append(theta_2_old)
     for i in range(len(time)-1):
-        denom = 1/(length_1*length_2*math.sin(theta_2_old))
+        det = (length_1*length_2*math.sin(theta_2_old))
+        # jacobian = [\
+        #     [-1*length_1*math.sin(theta_1_old)-length_2*math.sin(theta_1_old+theta_2_old),\
+        #     -1*length_2*math.sin(theta_1_old+theta_2_old)],\
+        #     [length_1*math.cos(theta_1_old)+length_2*math.cos(theta_1_old+theta_2_old),\
+        #     length_2*math.cos(theta_1_old+theta_2_old)]]
         inv_jacobian = [\
-            [(length_2*math.cos(theta_1_old+theta_2_old))/denom,\
-            (length_2*math.sin(theta_1_old+theta_2_old))/denom],\
-            [(-1*length_1*math.cos(theta_1_old)-length_2*math.cos(theta_1_old+theta_2_old))/denom,\
-            (-1*length_1*math.sin(theta_1_old)-length_2*math.sin(theta_1_old+theta_2_old))/denom]]
+            [(length_2*math.cos(theta_1_old+theta_2_old))/det,\
+            (length_2*math.sin(theta_1_old+theta_2_old))/det],\
+            [-1*(length_1*math.cos(theta_1_old)+length_2*math.cos(theta_1_old+theta_2_old))/det,\
+            -1*(length_1*math.sin(theta_1_old)+length_2*math.sin(theta_1_old+theta_2_old))/det]]
         p_dot = [[vel_prof[0][i]], [vel_prof[1][i]]]
         q_dot = mmult(inv_jacobian, p_dot)
-        delta_theta_1 = (time[i+1]-time[i])*q_dot[0][0]
-        delta_theta_2 = (time[i+1]-time[i])*q_dot[1][0]
+        delta_theta_1 = sample_time*q_dot[0][0]
+        delta_theta_2 = sample_time*q_dot[1][0]
         theta_1s.append(theta_1_old+delta_theta_1)
         theta_2s.append(theta_2_old+delta_theta_2)
         theta_1_old = theta_1s[-1]
@@ -210,7 +216,8 @@ def position_to_acceleration(time, positions_x, positions_y):
 #   Top Plots (Plots 1): Showing RR manipulator in physical space with 2 links extending to test pionts
 #   Bottom Plots (Plots 2) Creating plots showcasing theta_1/2 vs x/y for elbow up and down positions
 #   Option: inverse_kinematics for True, jacobian for False
-def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=1, inverse_kinematics=True):
+def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=1, inverse_kinematics=True, \
+    sample_time=0.05, total_time=1.8):
     #Set up plot values
     fig = plt.figure(figure_num)
     subplots = [242, 245, 246, 243, 247, 248]
@@ -224,9 +231,9 @@ def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=
             theta_1s, theta_2s = two_link_inverse_kinematics(tp_xs, tp_ys, length_1, length_2, elbow_up=elbow)
         else:
             time_array, pos_xy, vel_xy, acc_xy = trap_profile_gen_test_points([tp_xs[0], tp_ys[0]],\
-                 [tp_xs[-1], tp_ys[-1]], 1.8, 0.05)
+                 [tp_xs[-1], tp_ys[-1]], total_time, sample_time)
             theta_1s, theta_2s = two_link_jacobian_kinematics(time_array, pos_xy, vel_xy,\
-                link_lengths, link_lengths, elbow_up=elbow)            
+                link_lengths, link_lengths, sample_time=sample_time, elbow_up=elbow)            
         
         #Remove any areas the manipulator cannot reach
         relevant_xs = []
@@ -430,7 +437,7 @@ if __name__ == "__main__":
     time_array, pos_xy, vel_xy, acc_xy = trap_profile_gen_test_points(start, end, time, sample_time)
 
     theta_1s, theta_2s = two_link_jacobian_kinematics(time_array, pos_xy, vel_xy,\
-        link_lengths, link_lengths, elbow_up=True)
+        link_lengths, link_lengths, sample_time=sample_time, elbow_up=True)
 
     # Plot manipulator and thetas vs positions
     plot_kinematic_figures(pos_xy[0], pos_xy[1], 
