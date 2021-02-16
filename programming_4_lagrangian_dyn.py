@@ -334,26 +334,25 @@ def plot_profile_characteristics(time, positions, velocities, accelerations, ang
         subplot_num = subplot_num + 1; 
     figure.tight_layout()
 
-def plot_torque_characteristics(start, end, time, sample_time, l1, l2, m1, m2, figure_start=1, max_torque=None):
+#Generates a plot of torques for both manipulator joings
+def plot_torque_characteristics(start, end, time, sample_time, l1, l2, m1, m2, figure_start=1, max_torque_lv=None, max_torque_hv=None):
     in_oz_per_newton_meter = 141.611933
     time_array, pos_xy, vel_xy, acc_xy = trap_profile_gen_test_points(start, end, time, sample_time)
     fig = plt.figure(figure_start)
     subplot_num = 1
+    y_lim_scale = 1.2 #For ease of viewing
     for elbow in [True, False]:
         theta_1s, theta_2s = two_link_jacobian_kinematics(time_array, pos_xy, vel_xy,\
             l1, l2, sample_time=sample_time, elbow_up=elbow)
-        inches_per_meter = 1/(0.0254)
-        l1_m = l1/inches_per_meter
-        l2_m = l2/inches_per_meter
         [torques_theta_1, torques_theta_2] = torque_by_lagrangian(theta_1s, theta_2s, m1, m2, \
-            l1_m, l2_m, time_array)
+            l1, l2, time_array)
         for torques in [torques_theta_1, torques_theta_2]:
             fig.add_subplot(220+subplot_num)
-            #Make sure we plot in oz-in
-            torque_total = [torques[0][k]*in_oz_per_newton_meter for k in range(len(torques[0]))]
-            torque_inertial = [torques[1][k]*in_oz_per_newton_meter for k in range(len(torques[1]))]
-            torque_coriolis = [torques[2][k]*in_oz_per_newton_meter for k in range(len(torques[2]))]
-            torque_centripetal = [torques[3][k]*in_oz_per_newton_meter for k in range(len(torques[3]))]
+            #Convert from rad-N-m to oz-in
+            torque_total = [torques[0][k]*(in_oz_per_newton_meter/(2*math.pi)) for k in range(len(torques[0]))]
+            torque_inertial = [torques[1][k]*(in_oz_per_newton_meter/(2*math.pi)) for k in range(len(torques[1]))]
+            torque_coriolis = [torques[2][k]*(in_oz_per_newton_meter/(2*math.pi)) for k in range(len(torques[2]))]
+            torque_centripetal = [torques[3][k]*(in_oz_per_newton_meter/(2*math.pi)) for k in range(len(torques[3]))]
             plt.plot(time_array, torque_total, 'orange', label=r'T_(total)', linewidth=3)
             plt.plot(time_array, torque_inertial, 'r--', label=r'T_(inertial)')
             plt.plot(time_array, torque_coriolis, 'g--', label=r'T_(coriolis)')
@@ -365,6 +364,8 @@ def plot_torque_characteristics(start, end, time, sample_time, l1, l2, m1, m2, f
                 else:
                     plt.title(r'$\theta_2$'+r' Torques vs. Time: Elbow Up')
                     plt.ylabel(r'$T_{\theta_2}$'+r'(oz-in)')
+                    plt.ylim([max(abs(min(torque_total)), abs(max(torque_total)))*-y_lim_scale,\
+                         max(abs(min(torque_total)), abs(max(torque_total)))*y_lim_scale])
             else:
                 if subplot_num%2 == 1:
                     plt.title(r'$\theta_1$'+r' Torques vs. Time: Elbow Down')
@@ -372,23 +373,27 @@ def plot_torque_characteristics(start, end, time, sample_time, l1, l2, m1, m2, f
                 else:
                     plt.title(r'$\theta_2$'+r' Torques vs. Time: Elbow Down')
                     plt.ylabel(r'$T_{\theta_2}$'+r'(oz-in)')
-            if not max_torque == None:
+                    plt.ylim([max(abs(min(torque_total)), abs(max(torque_total)))*-y_lim_scale,\
+                         max(abs(min(torque_total)), abs(max(torque_total)))*y_lim_scale])
+            if not max_torque_lv == None:
                 #Assume max_torque given as in-oz
-                plt.hlines(max_torque, time_array[0], time_array[-1], colors='m', linewidth=1)
-                plt.hlines(-1*max_torque, time_array[0], time_array[-1], colors='m', linewidth=1)
+                plt.hlines(max_torque_lv, time_array[0], time_array[-1], colors='m', linewidth=1)
+                plt.hlines(-1*max_torque_lv, time_array[0], time_array[-1], colors='m', linewidth=1)
+            if not max_torque_hv == None:
+                #Assume max_torque given as in-oz
+                plt.hlines(max_torque_hv, time_array[0], time_array[-1], colors='pink', linewidth=1)
+                plt.hlines(-1*max_torque_hv, time_array[0], time_array[-1], colors='pink', linewidth=1)
             plt.xlabel("Time (sec)")
+            plt.xlim([time_array[0], time_array[-1]])
             subplot_num = subplot_num+1
-        if not max_torque == None:
-            legend_elements = [Line2D([0], [0], linestyle='-', color='orange', label=r'$T_{total}$', lw=3),
-                            Line2D([0], [0], linestyle='--', color='r', label=r'$T_{inertial}$', lw=2),
-                            Line2D([0], [0], linestyle='--', color='g', label=r'$T_{coriolas}$', lw=2),
-                            Line2D([0], [0], linestyle='--', color='b', label=r'$T_{centripetal}$', lw=2),
-                            Line2D([0], [0], linestyle='-', color='m', label=r'$T_{stall}$', lw=1)]
-        else:
-            legend_elements = [Line2D([0], [0], linestyle='-', color='orange', label=r'$T_{total}$', lw=3),
+        legend_elements = [Line2D([0], [0], linestyle='-', color='orange', label=r'$T_{total}$', lw=3),
                             Line2D([0], [0], linestyle='--', color='r', label=r'$T_{inertial}$', lw=2),
                             Line2D([0], [0], linestyle='--', color='g', label=r'$T_{coriolas}$', lw=2),
                             Line2D([0], [0], linestyle='--', color='b', label=r'$T_{centripetal}$', lw=2)]
+        if not max_torque_hv == None:
+            legend_elements.append(Line2D([0], [0], linestyle='-', color='pink', label=r'$T_{stall_{HV}}$', lw=1))
+        if not max_torque_lv == None:
+            legend_elements.append(Line2D([0], [0], linestyle='-', color='m', label=r'$T_{stall_{LV}}$', lw=1))
         fig.legend(handles=legend_elements, loc='upper left')
         fig.tight_layout()
     pass
@@ -431,7 +436,7 @@ def trap_profile_gen(ta, tcv, td, displacement, sample_time):
     #Determine the time vector
     for time in range(num_updates+xtra_count_num):
         t_now = time*sample_time
-        times.append(time)
+        times.append(t_now)
         #Acceleration
         if (t_now < time_accel) and (t_now >= 0):
             a_now = accel_max
@@ -550,17 +555,20 @@ if __name__ == "__main__":
     start = [2, 8]
     end = [9, 2]
     manipulator_base_origin = [0, 0]
+    inches_per_meter = 1/(0.0254)
     link_lengths = 5 #inches
-    m1 = 1 #kg
-    m2 = 4*m1 #kg
+    link_lenghts_m = 5/inches_per_meter #meters
+    m2 = .017 #kg
+    m1 = .066 #kg
     stall_torque_top = 56.93 #oz-in
     stall_torque_bottom = 45.82 #oz-in
 
     # Find points on line according to velocity profile
-    time = 1.8 #Seconds (Fixed for all functions)
+    time = 3.4 #Seconds (Fixed for all functions)
     sample_time = 0.05 #50 milliseconds (Fixed for all functions)
 
-    plot_torque_characteristics(start, end, time, sample_time, link_lengths, link_lengths, m1, m2, figure_start=1)
+    plot_torque_characteristics(start, end, time, sample_time, link_lengths, link_lengths, \
+        m1, m2, figure_start=1, max_torque_lv=stall_torque_bottom, max_torque_hv=stall_torque_top)
     plt.show()
 
 
