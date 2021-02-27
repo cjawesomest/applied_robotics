@@ -202,7 +202,7 @@ def geometric_inverse_kinematics(x_vals, y_vals, length_1, length_2, elbow_up=Tr
             theta_2s.append(False)
             continue
         this_theta_2 = sigma*math.acos((this_x**2+this_y**2-length_1**2-length_2**2)/(2*length_1*length_2))
-        this_theta_1 = math.atan(this_x/this_y)-sigma*math.atan((length_2*math.sin(this_theta_2))/(length_1+length_2*math.cos(this_theta_2)))
+        this_theta_1 = math.atan(this_y/this_x)-math.atan((length_2*math.sin(this_theta_2))/(length_1+length_2*math.cos(this_theta_2)))
         theta_1s.append(this_theta_1)
         theta_2s.append(this_theta_2)
     return theta_1s, theta_2s
@@ -309,6 +309,9 @@ def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=
         plt.title(titles[iter])
         # Plot physical space drawings of links 1 and 2
         for i in range(len(theta_1s)):
+            if inverse_kinematics == "GEO":
+                pass
+            else:
                 link_1_angle = theta_1s[i]
                 link_2_angle = theta_1s[i]+theta_2s[i]
                 link_1_start = origin
