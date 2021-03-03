@@ -304,8 +304,8 @@ def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=
         plt.scatter(origin[0], origin[1], s=8, c='maroon')
         plt.xlabel(xlabels[iter])
         plt.ylabel(ylabels[iter])
-        plt.xlim([-5, 10])
-        plt.ylim([-10, 10])
+        plt.xlim([-5, length_1+length_2])
+        plt.ylim([-(length_1+length_2), length_1+length_2])
         plt.title(titles[iter])
         # Plot physical space drawings of links 1 and 2
         for i in range(len(theta_1s)):
@@ -327,6 +327,26 @@ def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=
         # Plot Thetas vs X,Y plots
         theta_1s_deg = [math.degrees(theta) for theta in theta_1s]
         theta_2s_deg = [math.degrees(theta) for theta in theta_2s]
+
+        #For Arduino Robot
+        # if elbow:
+        #     theta_1s_deg_ard = []
+        #     for theta in theta_1s_deg:
+        #         if theta < 90 and theta > 0:
+        #             theta_1s_deg_ard.append(90-int(theta))
+        #         elif theta <= 0:
+        #             theta_1s_deg_ard.append(int(abs(theta))+90)
+        #     theta_2s_deg_ard = []
+        #     for theta in theta_2s_deg:
+        #         if theta < 90 and theta > 0:
+        #             theta_2s_deg_ard.append(90-int(theta))
+        #         elif theta >= 90:
+        #             theta_2s_deg_ard.append(int(abs(theta))-90)
+        #     print(len(theta_1s_deg_ard))
+        #     print(theta_1s_deg_ard)
+        #     print(len(theta_2s_deg_ard))
+        #     print(theta_2s_deg_ard)
+
         for angles in [theta_1s_deg, theta_2s_deg]:
             axis = fig.add_subplot(subplots[iter])
             plt.scatter(relevant_xs, angles, s=8, c=['red'])
@@ -336,7 +356,7 @@ def plot_kinematic_figures(tp_xs, tp_ys, length_1, length_2, origin, figure_num=
                 plt.scatter(approx_ys, angles, s=8, c=['royalblue'])
             plt.xlabel(xlabels[iter])
             plt.ylabel(ylabels[iter])
-            plt.xlim([-10, 10])
+            plt.xlim([-10, length_1+length_2])
             plt.ylim([-360, 360])
             plt.title(titles[iter])
             iter = iter + 1
@@ -618,8 +638,8 @@ def forward_dh_matrix(theta_1, theta_2, d1, d2, a1, a2):
 
 if __name__ == "__main__":
     #Configure system characteristics
-    start = [2, 8]
-    end = [9, 2]
+    start = [6, 8]
+    end = [10, -3]
     manipulator_base_origin = [0, 0]
     inches_per_meter = 1/(0.0254)
     link_lengths = 5.75 #inches
@@ -632,8 +652,8 @@ if __name__ == "__main__":
     stall_torque_bottom = 45.82 #oz-in
 
     # Find points on line according to velocity profile
-    time = 3.4 #Seconds (Fixed for all functions)
-    sample_time = 0.5 #50 milliseconds (Fixed for all functions)
+    time = 18 #Seconds (Fixed for all functions)
+    sample_time = 0.1 #50 milliseconds (Fixed for all functions)
 
     # Determine profiles
     time_array, pos_xy, vel_xy, acc_xy = trap_profile_gen_test_points(start, end, time, sample_time)
@@ -643,18 +663,18 @@ if __name__ == "__main__":
         pos_xy[1], link_lengths, link_lengths, elbow_up=True)
 
     # Plot manipulator and thetas vs positions
-    plot_kinematic_figures(pos_xy[0], pos_xy[1], 
-        link_lengths, link_lengths, manipulator_base_origin, figure_num = 1, inverse_kinematics="INV",
-        dh_compare=True, height_1=z_displacement_1, height_2=z_displacement_2)
+    # plot_kinematic_figures(pos_xy[0], pos_xy[1], 
+    #     link_lengths, link_lengths, manipulator_base_origin, figure_num = 1, inverse_kinematics="INV",
+    #     dh_compare=True, height_1=z_displacement_1, height_2=z_displacement_2)
     # Plot manipulator with geometric inverse without comparison
     plot_kinematic_figures(pos_xy[0], pos_xy[1], 
         link_lengths, link_lengths, manipulator_base_origin, figure_num = 2, inverse_kinematics="GEOM",
         dh_compare=False, height_1=z_displacement_1, height_2=z_displacement_2)
     plt.show()
 
-    # plot_torque_characteristics(start, end, time, sample_time, link_lengths, link_lengths, \
-    #     m1, m2, figure_start=1, max_torque_lv=stall_torque_bottom, max_torque_hv=stall_torque_top)
-    # plt.show()
+    plot_torque_characteristics(start, end, time, sample_time, link_lengths, link_lengths, \
+        m1, m2, figure_start=1, max_torque_lv=stall_torque_bottom, max_torque_hv=stall_torque_top)
+    plt.show()
 
 
     
