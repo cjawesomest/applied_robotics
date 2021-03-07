@@ -1,4 +1,5 @@
 #include <Servo.h>
+
 #define encoder_press_pin 4
 #define encoder_read_pin 2
 #define encoder_clock_pin 3
@@ -11,6 +12,7 @@ volatile boolean TurnDetected;  // need volatile for Interrupts
 volatile boolean rotationdirection;  // CW or CCW rotation
 
 int encoder_position=0;    // To store Stepper Motor Position
+int start_position_enc=0;
 
 int last_position;     // Previous Rotary position Value to check accuracy
 //int StepsToTake;      // How much to move Stepper
@@ -41,7 +43,7 @@ int update_counter = 0;
 bool read_enable = true;
 bool rotate_init = true;
 bool rotate_wait = false;
-bool print_enable = false;
+bool print_enable = true;
 bool profile_mode = false;
 
 
@@ -97,6 +99,8 @@ void loop() {
     if (encoder_position == 0) {  // check if button was already pressed
     } 
     else {
+        Serial.print("Encoder Pulses: ");
+        Serial.println(encoder_position-start_position_enc);
         encoder_position=0; // Reset position to ZERO
       }
     }
@@ -108,10 +112,10 @@ void loop() {
       encoder_position=encoder_position-1;} // decrease Position by 1
     else {
       encoder_position=encoder_position+1;} // increase Position by 1
-    if (print_enable) {
-      Serial.print("Encoder Position: ");
-      Serial.println(encoder_position);
-    }
+//    if (print_enable) {
+//      Serial.print("Encoder Position: ");
+//      Serial.println(encoder_position);
+//    }
 
     TurnDetected = false;  // do NOT repeat IF loop until new rotation detected
   }
@@ -136,6 +140,7 @@ void loop() {
    }
 }
 
+//Interrupts
 void encoder_isr ()  {
   delay(4);  // delay for Debouncing
   if (digitalRead(encoder_clock_pin))
